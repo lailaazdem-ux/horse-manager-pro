@@ -11,6 +11,18 @@
 <meta property="og:type" content="website">
 <meta name="robots" content="index,follow">
 
+<!-- Vercel Speed Insights -->
+<script>
+  window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
+</script>
+<script defer src="/_vercel/speed-insights/script.js"></script>
+
+<!-- Vercel Web Analytics -->
+<script>
+  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -343,12 +355,10 @@ th{font-size:12px;text-transform:uppercase;color:var(--muted)}
     .public-feature-grid{grid-template-columns:1fr}
     .public-cta{flex-direction:column;align-items:flex-start}
 }
-
 </style>
 </head>
 
 <body>
-
 
 <section id="publicPage">
   <nav class="public-nav">
@@ -651,6 +661,22 @@ function toggleTheme(){
 }
 function loadTheme(){if(localStorage.getItem("hrm_theme")==="dark")document.body.classList.add("dark")}
 
+/* ---------- Navigation & Pages ---------- */
+function openManager(){
+    document.getElementById("publicPage").classList.add("hidden");
+    if(currentSession.username){
+        document.getElementById("appPage").classList.remove("hidden");
+        renderDashboard();
+    } else {
+        document.getElementById("loginPage").classList.remove("hidden");
+    }
+}
+function backToWebsite(){
+    document.getElementById("loginPage").classList.add("hidden");
+    document.getElementById("appPage").classList.add("hidden");
+    document.getElementById("publicPage").classList.remove("hidden");
+}
+
 /* ---------- Text to speech ---------- */
 function speakText(text){
     if(!("speechSynthesis" in window)) return;
@@ -716,20 +742,8 @@ function showAssistantPrompt(){
     if(assistantState.mode==="menu") prompt=currentSession.role==="admin"
         ?"What would you like to manage? You can say horse management, race management, jockey management, trainer management, user management, open calendar, dashboard, or logout."
         :"What would you like to do? You can say horse management, race management, open calendar, edit profile, favorite races, favorite horses, dashboard, or logout.";
-    else if(assistantState.mode==="addHorse") prompt=horseQuestion();
-    else if(assistantState.mode==="result") prompt=resultQuestion();
     setVoiceStatus(prompt);
     speakText(prompt);
-}
-function beginAssistant(){
-    if(document.getElementById("appPage").classList.contains("hidden")){
-        setVoiceStatus("What would you like to do? You can say help, or type your command below.");
-        speakText("What would you like to do? You can say help, or type your command below.");
-        return;
-    }
-    assistantState.active=true;assistantState.mode="menu";assistantState.step=0;assistantState.data={};
-    renderAssistantBar();
-    showAssistantPrompt();
 }
 function renderAssistantBar(){
     const host=document.getElementById("assistantHost");
@@ -746,14 +760,6 @@ function renderAssistantBar(){
         </div>
         <button class="btn" onclick="startVoiceAssistant()">🎤 Speak</button>
       </div>`;
-}
-function assistantBarOnPage(){
-    if(document.getElementById("appPage").classList.contains("hidden"))return;
-    const main=document.getElementById("mainContent");
-    if(!document.getElementById("assistantHost")){
-        main.insertAdjacentHTML("afterbegin",`<div id="assistantHost"></div>`);
-        renderAssistantBar();
-    } else renderAssistantBar();
 }
 function submitAssistantText(){
     const i=document.getElementById("assistantInput");
@@ -794,966 +800,91 @@ function handleLoginCommand(text){
         return;
     }
 
-    setVoiceStatus(
-        "I did not understand that request yet. Try saying what you want in a normal sentence, or say help."
-    );
-    speakText(
-        "I did not understand that request yet. Try saying what you want in a normal sentence, or say help."
-    );
+    setVoiceStatus("I did not understand that request yet. Try saying what you want in a normal sentence, or say help.");
+    speakText("I did not understand that request yet. Try saying what you want in a normal sentence, or say help.");
 }
-function words(n){
-    return n.split(/\s+/).filter(Boolean);
+
+function handleAssistantInput(text){
+    const n=normalize(text);
+    if(n==="help"||n.includes("what can you do")){
+        setVoiceStatus(helpText());
+        speakText(helpText());
+        return;
+    }
+    if(hasAny(n,["dashboard","home"])){renderDashboard();return;}
+    if(hasAny(n,["horse","horses"])){renderHorses();return;}
+    if(hasAny(n,["race","races"])){renderRaces();return;}
+    if(hasAny(n,["logout","log out","sign out"])){logout();return;}
+    
+    setVoiceStatus("Command not recognized. Say 'help' for options.");
+    speakText("Command not recognized. Say help for options.");
 }
 
 function hasAny(n, list){
     return list.some(x => n.includes(x));
 }
 
-function scoreIntent(n, intent){
-    let score = 0;
-    for(const phrase of intent.phrases){
-        if(n.includes(phrase)) score += phrase.length >= 8 ? 4 : 2;
-    }
-    for(const word of intent.words){
-        if(n.includes(word)) score += 1;
-    }
-    return score;
-}
-
-function detectIntent(text){
-    const n = normalize(text);
-
-    const intents = [
-        {
-            name:"help",
-            phrases:["help","what can you do","what can i say","available commands","show me what i can do"],
-            words:["help","commands"]
-        },
-        {
-            name:"horse",
-            phrases:["horse management","manage the horses","manage horses","horse database","horse section","horse page","horse screen","horses"],
-            words:["horse","horses","equine"]
-        },
-        {
-            name:"addHorse",
-            phrases:["add a horse","add horse","new horse","create a horse","register a horse","i want to add a horse"],
-            words:["add","create","register"]
-        },
-        {
-            name:"race",
-            phrases:["race management","manage the races","manage races","race section","race page","race screen","races"],
-            words:["race","races"]
-        },
-        {
-            name:"calendar",
-            phrases:["open calendar","show calendar","race calendar","racing calendar","calendar page","calendar"],
-            words:["calendar","schedule"]
-        },
-        {
-            name:"profile",
-            phrases:["edit profile","my profile","profile settings","change my profile","update my profile","account settings","profile"],
-            words:["profile","account","settings"]
-        },
-        {
-            name:"favoriteRaces",
-            phrases:["favorite races","favourite races","my favorite races","my favourite races","races i like"],
-            words:["favorite","favourite","races"]
-        },
-        {
-            name:"favoriteHorses",
-            phrases:["favorite horses","favourite horses","my favorite horses","my favourite horses","horses i like"],
-            words:["favorite","favourite","horses"]
-        },
-        {
-            name:"jockeys",
-            phrases:["jockey management","manage jockeys","jockeys section","jockey page","jockeys"],
-            words:["jockey","jockeys","rider","riders"]
-        },
-        {
-            name:"trainers",
-            phrases:["trainer management","manage trainers","trainer section","trainer page","trainers"],
-            words:["trainer","trainers","stable"]
-        },
-        {
-            name:"users",
-            phrases:["user management","manage users","user administration","user page","users"],
-            words:["user","users","accounts","administration"]
-        },
-        {
-            name:"dashboard",
-            phrases:["open dashboard","show dashboard","go to dashboard","take me home","main screen","home page","dashboard","home"],
-            words:["dashboard","home","main"]
-        },
-        {
-            name:"logout",
-            phrases:["log out","logout","sign out","leave the account","exit the account","disconnect me"],
-            words:["logout","signout","disconnect","exit"]
-        }
-    ];
-
-    let best = null;
-    for(const intent of intents){
-        const score = scoreIntent(n,intent);
-        if(score > (best?.score || 0)){
-            best = {name:intent.name,score};
-        }
-    }
-
-    return {name:best?.score >= 2 ? best.name : "unknown", text:n};
-}
-
-function handleAssistantInput(text){
-    if(!assistantState.active){beginAssistant();return}
-
-    if(assistantState.mode==="addHorse"){
-        handleAddHorseAnswer(text);
-        return;
-    }
-
-    if(assistantState.mode==="result"){
-        handleResultAnswer(text);
-        return;
-    }
-
-    const detected = detectIntent(text);
-
-    switch(detected.name){
-
-        case "help":
-            speakText(helpText());
-            setVoiceStatus(helpText());
-            return;
-
-        case "horse":
-            speakText("Opening horse management.");
-            showAdminHorses();
-            return;
-
-        case "addHorse":
-            startAddHorseAssistant();
-            return;
-
-        case "race":
-            speakText("Opening race management.");
-            showAdminRaces();
-            return;
-
-        case "calendar":
-            speakText("Opening the race calendar.");
-            showCalendar(currentSession.role !== "admin");
-            return;
-
-        case "profile":
-            speakText("Opening profile settings.");
-            showProfile();
-            return;
-
-        case "favoriteRaces":
-            speakText("Opening your favorite races.");
-            showRaceList(true);
-            return;
-
-        case "favoriteHorses":
-            speakText("Opening your favorite horses.");
-            showHorseList(true);
-            return;
-
-        case "jockeys":
-            speakText("Opening jockey management.");
-            showJockeys();
-            return;
-
-        case "trainers":
-            speakText("Opening trainer management.");
-            showTrainers();
-            return;
-
-        case "users":
-            if(currentSession.role !== "admin"){
-                speakText("User management is available to the administrator.");
-                setVoiceStatus("User management is available to the administrator.");
-                return;
-            }
-            speakText("Opening user management.");
-            showAdminUsers();
-            return;
-
-        case "dashboard":
-            speakText("Opening the dashboard.");
-            currentSession.role==="admin" ? showAdminDashboard() : showUserDashboard();
-            return;
-
-        case "logout":
-            speakText("Logging out.");
-            setTimeout(logout,500);
-            return;
-
-        default:
-            setVoiceStatus(
-                "I couldn't identify what you want yet. Tell me in your own words, or say help."
-            );
-            speakText(
-                "I couldn't identify what you want yet. Tell me in your own words, or say help."
-            );
-            return;
-    }
-}
-function finishAssistantMessage(msg){
-    setVoiceStatus(msg);speakText(msg);
-}
-
-/* ---------- Conversational Add Horse ---------- */
-function horseQuestion(){
-    const q=[
-        "What is the horse's name?",
-        "What is the horse's age?",
-        "What is the horse's sex?",
-        "What is the horse's breed?",
-        "What is the race number?",
-        "What is the horse's weight?",
-        "Who is the jockey? You can say none.",
-        "Who is the trainer? You can say none.",
-        "How many wins does the horse have?",
-        "How many second places does the horse have?",
-        "How many third places does the horse have?"
-    ];
-    return q[assistantState.step]||"";
-}
-function startAddHorseAssistant(){
-    assistantState.active=true;assistantState.mode="addHorse";assistantState.step=0;assistantState.data={};
-    assistantBarOnPage();showAssistantPrompt();
-}
-function handleAddHorseAnswer(text){
-    const s=text.trim();
-    const step=assistantState.step;
-    const keys=["name","age","sex","breed","number","weight","jockey","trainer","wins","seconds","thirds"];
-    const key=keys[step];
-    assistantState.data[key]=s;
-    assistantState.step++;
-    if(assistantState.step<keys.length){showAssistantPrompt();return}
-    const d=assistantState.data;
-    const jockey=findByName(db.jockeys,d.jockey);
-    const trainer=findByName(db.trainers,d.trainer);
-    db.horses.push({
-        id:id("H",db.horses),name:d.name,age:d.age,sex:d.sex,breed:d.breed,number:d.number,weight:d.weight,
-        jockeyId:jockey?.id||"",trainerId:trainer?.id||"",wins:Number(d.wins)||0,seconds:Number(d.seconds)||0,thirds:Number(d.thirds)||0
-    });
-    saveDB();
-    assistantState.mode="menu";assistantState.step=0;assistantState.data={};
-    speakText(`Horse ${d.name} has been added successfully.`);
-    setVoiceStatus(`Horse ${d.name} has been added successfully.`);
-    showAdminHorses();
-}
-function findByName(arr,name){
-    const n=normalize(name);
-    if(!n||n==="none"||n==="no jockey"||n==="no trainer")return null;
-    return arr.find(x=>normalize(x.name)===n)||arr.find(x=>normalize(x.name).includes(n)||n.includes(normalize(x.name)))||null;
-}
-
-/* ---------- conversational result entry ---------- */
-function resultQuestion(){
-    const race=getRace(assistantState.data.raceId);
-    const horseIds=race?.horseIds||[];
-    const hid=horseIds[assistantState.step];
-    const h=getHorse(hid);
-    return h?`What position did ${h.name} finish? Say a number such as 1, 2, or 3.`:"";
-}
-function startResultAssistant(raceId){
-    const race=getRace(raceId);
-    if(!race||!(race.horseIds||[]).length){
-        speakText("There are no horses entered in this race.");
-        return;
-    }
-    assistantState.active=true;assistantState.mode="result";assistantState.step=0;assistantState.data={raceId,results:{}};
-    assistantBarOnPage();showAssistantPrompt();
-}
-function handleResultAnswer(text){
-    const position=parseInt(text.match(/\d+/)?.[0],10);
-    const race=getRace(assistantState.data.raceId);
-    const ids=race?.horseIds||[];
-    const hid=ids[assistantState.step];
-    const horse=getHorse(hid);
-    if(!position||position<1){
-        finishAssistantMessage("Please give a valid finishing position, such as 1, 2, or 3.");
-        return;
-    }
-    assistantState.data.results[hid]=position;
-    assistantState.step++;
-    if(assistantState.step<ids.length){showAssistantPrompt();return}
-    saveRaceResultsAndRecalculate(race.id,assistantState.data.results);
-    assistantState.mode="menu";assistantState.step=0;assistantState.data={};
-    finishAssistantMessage("The race results were saved and the horse profiles were updated.");
-    showRaceDetails(race.id,false);
-}
-function saveRaceResultsAndRecalculate(raceId,newResults){
-    const race=getRace(raceId); if(!race)return;
-    race.results=newResults;
-    recalcHorseStats();
-    saveDB();
-}
-function recalcHorseStats(){
-    db.horses.forEach(h=>{h.wins=0;h.seconds=0;h.thirds=0});
-    db.races.forEach(r=>{
-        Object.entries(r.results||{}).forEach(([hid,pos])=>{
-            const h=getHorse(hid); if(!h)return;
-            if(Number(pos)===1)h.wins++;
-            else if(Number(pos)===2)h.seconds++;
-            else if(Number(pos)===3)h.thirds++;
-        });
-    });
-}
-
-
-/* ---------- Smart racing assistant ---------- */
-
-function topHorse() {
-    return db.horses.length
-        ? [...db.horses].sort((a,b)=>(Number(b.wins)||0)-(Number(a.wins)||0))[0]
-        : null;
-}
-
-function topJockey() {
-    return db.jockeys.length
-        ? [...db.jockeys].sort((a,b)=>(Number(b.wins)||0)-(Number(a.wins)||0))[0]
-        : null;
-}
-
-function topTrainer() {
-    return db.trainers.length
-        ? [...db.trainers].sort((a,b)=>(Number(b.wins)||0)-(Number(a.wins)||0))[0]
-        : null;
-}
-
-function horseForm(horseId) {
-    return db.races
-        .filter(r=>r.results && r.results[horseId] != null)
-        .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")))
-        .slice(0,10)
-        .map(r=>Number(r.results[horseId]));
-}
-
-function formString(horseId) {
-    const f = horseForm(horseId);
-    return f.length ? f.join("-") : "No results yet";
-}
-
-function totalRaceStarts(horseId) {
-    return db.races.filter(r=>r.results && r.results[horseId] != null).length;
-}
-
-function winningStreak(horseId) {
-    let count = 0;
-    for (const p of horseForm(horseId)) {
-        if (p === 1) count++;
-        else break;
-    }
-    return count;
-}
-
-
-function horseStatisticsMessage(horse) {
-    const wins = Number(horse.wins) || 0;
-    const seconds = Number(horse.seconds) || 0;
-    const thirds = Number(horse.thirds) || 0;
-    const starts = totalRaceStarts(horse.id);
-    const form = formString(horse.id);
-    const streak = winningStreak(horse.id);
-
-    return `${horse.name} has ${wins} wins, ${seconds} second places, ${thirds} third places, ${starts} recorded starts, recent form ${form}, and a current winning streak of ${streak}.`;
-}
-
-function findHorseMentioned(text) {
-    const n = normalize(text);
-
-    return [...db.horses]
-        .filter(h => normalize(h.name))
-        .sort(
-            (a,b) =>
-                normalize(b.name).length -
-                normalize(a.name).length
-        )
-        .find(h => n.includes(normalize(h.name))) || null;
-}
-
-function smartAnswer(text) {
-    const n = normalize(text);
-
-    if (
-        hasAny(n, [
-            "show me the statistics of",
-            "show me the statistics for",
-            "show the statistics of",
-            "show statistics for",
-            "what are the statistics of",
-            "what are the statistics for",
-            "tell me the statistics of",
-            "tell me the statistics for",
-            "statistics of",
-            "statistics for"
-        ])
-    ) {
-        const horse = findHorseMentioned(text);
-
-        if (horse) {
-            const msg = horseStatisticsMessage(horse);
-            setVoiceStatus(msg);
-            speakText(msg);
-            showHorseProfile(
-                horse.id,
-                currentSession.role !== "admin"
-            );
-            return true;
-        }
-
-        const msg =
-            "I couldn't find that horse in the database.";
-        setVoiceStatus(msg);
-        speakText(msg);
-        return true;
-    }
-
-    for (const h of db.horses) {
-        const hn = normalize(h.name);
-        if (
-            hn &&
-            n.includes(hn) &&
-            hasAny(n, ["statistics","stats"])
-        ) {
-            const msg = horseStatisticsMessage(h);
-            setVoiceStatus(msg);
-            speakText(msg);
-            showHorseProfile(
-                h.id,
-                currentSession.role !== "admin"
-            );
-            return true;
-        }
-
-        if (
-            hn &&
-            n.includes(hn) &&
-            hasAny(n, ["profile","open","show","about","information","how is","tell me"])
-        ) {
-            const msg = `${h.name} has ${Number(h.wins)||0} wins, ${Number(h.seconds)||0} second places, and ${Number(h.thirds)||0} third places.`;
-            setVoiceStatus(msg);
-            speakText(msg);
-            showHorseProfile(h.id, currentSession.role !== "admin");
-            return true;
-        }
-
-        if (
-            hn &&
-            n.includes(hn) &&
-            hasAny(n, ["form","recent results","recent performance","last races"])
-        ) {
-            const msg = `${h.name}'s recent form is ${formString(h.id)}.`;
-            setVoiceStatus(msg);
-            speakText(msg);
-            return true;
-        }
-    }
-
-    if (
-        hasAny(n, [
-            "who is the best horse",
-            "which horse is the best",
-            "best horse",
-            "top horse",
-            "most wins",
-            "who has the most wins"
-        ])
-    ) {
-        const h = topHorse();
-        const msg = h
-            ? `${h.name} currently has the most wins, with ${Number(h.wins)||0} wins.`
-            : "There are no horses in the database yet.";
-        setVoiceStatus(msg);
-        speakText(msg);
-        return true;
-    }
-
-    if (
-        hasAny(n, [
-            "when is the next race",
-            "what race is next",
-            "next race",
-            "upcoming race",
-            "what's next"
-        ])
-    ) {
-        const r = nextRace();
-        const msg = r
-            ? `The next race is ${r.name} on ${r.date} at ${r.time}, at ${r.track}.`
-            : "There are no upcoming races.";
-        setVoiceStatus(msg);
-        speakText(msg);
-        return true;
-    }
-
-    if (hasAny(n, ["top jockey","best jockey","leading jockey"])) {
-        const j = topJockey();
-        const msg = j
-            ? `${j.name} is the top jockey with ${Number(j.wins)||0} wins.`
-            : "There are no jockeys yet.";
-        setVoiceStatus(msg);
-        speakText(msg);
-        return true;
-    }
-
-    if (hasAny(n, ["top trainer","best trainer","leading trainer"])) {
-        const t = topTrainer();
-        const msg = t
-            ? `${t.name} is the top trainer with ${Number(t.wins)||0} wins.`
-            : "There are no trainers yet.";
-        setVoiceStatus(msg);
-        speakText(msg);
-        return true;
-    }
-
-    if (hasAny(n, ["statistics","stats","show statistics","performance statistics"])) {
-        showStatistics();
-        speakText("Opening the statistics center.");
-        return true;
-    }
-
-    return false;
-}
-
-function showStatistics() {
-    const h = topHorse(), j = topJockey(), t = topTrainer();
-    const horses = [...db.horses]
-        .sort((a,b)=>(Number(b.wins)||0)-(Number(a.wins)||0));
-
-    setMain(`${dashboardAssistantHost()}
-        <h1>📊 Statistics Center</h1>
-        <p class="muted">Performance overview across the racing manager.</p>
-
-        <div class="stats">
-            ${stat("🏆","Top Horse",h ? h.name : "None")}
-            ${stat("🥇","Top Horse Wins",h ? (h.wins||0) : 0)}
-            ${stat("🏇","Top Jockey",j ? j.name : "None")}
-            ${stat("👤","Top Trainer",t ? t.name : "None")}
-        </div>
-
-        <div class="card">
-            <h2>🏆 Horse Leaderboard</h2>
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Horse</th>
-                            <th>Wins</th>
-                            <th>2nd</th>
-                            <th>3rd</th>
-                            <th>Starts</th>
-                            <th>Form</th>
-                            <th>Streak</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${
-                            horses.length
-                            ? horses.map((x,i)=>`
-                                <tr>
-                                    <td>${i===0?"🏆 ":""}${esc(x.name)}</td>
-                                    <td>${Number(x.wins)||0}</td>
-                                    <td>${Number(x.seconds)||0}</td>
-                                    <td>${Number(x.thirds)||0}</td>
-                                    <td>${totalRaceStarts(x.id)}</td>
-                                    <td>${esc(formString(x.id))}</td>
-                                    <td>${winningStreak(x.id)}</td>
-                                </tr>
-                            `).join("")
-                            : `<tr><td colspan="7">No horse data yet.</td></tr>`
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <br>
-
-        <div class="grid-2">
-            <div class="card">
-                <h2>🔥 Quick Insights</h2>
-                ${
-                    h
-                    ? `<p style="margin-bottom:10px"><strong>${esc(h.name)}</strong> leads with ${Number(h.wins)||0} wins.</p>
-                       <p style="margin-bottom:10px">Recent form: <strong>${esc(formString(h.id))}</strong></p>
-                       <p>Winning streak: <strong>${winningStreak(h.id)}</strong></p>`
-                    : `<p class="muted">Add horses and race results to generate insights.</p>`
-                }
-            </div>
-
-            <div class="card">
-                <h2>📅 Upcoming Races</h2>
-                ${
-                    db.races
-                    .filter(r=>["Upcoming","Today"].includes(raceStatus(r)))
-                    .sort((a,b)=>(raceDate(a)?.getTime()||Infinity)-(raceDate(b)?.getTime()||Infinity))
-                    .slice(0,5)
-                    .map(r=>`<p style="padding:9px 0;border-bottom:1px solid var(--border)">
-                        <strong>${esc(r.name)}</strong><br>
-                        <span class="muted">${r.date} ${r.time} — ${esc(r.track)}</span>
-                    </p>`).join("")
-                    || `<p class="muted">No upcoming races.</p>`
-                }
-            </div>
-        </div>
-    `);
-
-    setTimeout(renderAssistantBar,0);
-}
-
-const oldAssistantInput = handleAssistantInput;
-handleAssistantInput = function(text) {
-    if (assistantState.mode === "menu" && smartAnswer(text)) return;
-    oldAssistantInput(text);
-};
-
-/* ---------- Login ---------- */
+/* ---------- Auth & Placeholders ---------- */
 function login(){
     const u=document.getElementById("loginUsername").value.trim();
-    const p=document.getElementById("loginPassword").value;
-    if(!u||!p){alert("Please enter username and password.");return}
-    const user=db.users[u];
-    if(!user){alert("Incorrect username or password.");return}
-    if((user.failedAttempts||0)>=3){alert("Account locked. Contact Admin.");return}
-    if(user.password!==p){
-        user.failedAttempts=(user.failedAttempts||0)+1;saveDB();
-        alert(user.failedAttempts<3?`Incorrect password. Attempts left: ${3-user.failedAttempts}`:"Account locked.");return
+    const p=document.getElementById("loginPassword").value.trim();
+    if(db.users[u] && db.users[u].password===p){
+        currentSession={username:u,role:db.users[u].role};
+        document.getElementById("loginPage").classList.add("hidden");
+        document.getElementById("appPage").classList.remove("hidden");
+        document.getElementById("currentUser").textContent=`👤 ${u} (${db.users[u].role})`;
+        renderDashboard();
+    } else {
+        alert("Invalid credentials.");
     }
-    user.failedAttempts=0;user.lastLogin=new Date().toLocaleString();saveDB();
-    currentSession={username:u,role:user.role||"user"};
-    document.getElementById("loginPage").classList.add("hidden");
-    document.getElementById("appPage").classList.remove("hidden");
-    document.getElementById("currentUser").textContent=u;
-    buildSidebar();
-    currentSession.role==="admin"?showAdminDashboard():showUserDashboard();
-    setTimeout(()=>beginAssistant(),350);
 }
-function logout(){currentSession={username:null,role:null};location.reload()}
-
-/* ---------- Generic modal ---------- */
-function showModal(html){document.getElementById("modalContent").innerHTML=html;document.getElementById("modal").classList.remove("hidden")}
-function closeModal(){document.getElementById("modal").classList.add("hidden")}
-document.getElementById("modal").addEventListener("click",e=>{if(e.target===e.currentTarget)closeModal()});
-
-/* ---------- Create/Admin login ---------- */
-function showCreateAccount(){
-    showModal(`<div class="modal-header"><h2>Create Account</h2><button class="close" onclick="closeModal()">×</button></div>
-      <div class="form-group"><label>Username</label><input id="newUsername" class="input"></div>
-      <div class="form-group"><label>Password</label><input id="newPassword" class="input" type="password"></div>
-      <div id="accountMessage" class="muted" style="margin-bottom:15px"></div>
-      <button class="btn full" onclick="createAccount()">Create Account</button>`);
-}
-function createAccount(){
-    const u=document.getElementById("newUsername").value.trim(),p=document.getElementById("newPassword").value,m=document.getElementById("accountMessage");
-    if(!u||!p){m.textContent="Fill in all fields.";return}
-    if(p.length<8){m.textContent="Password must contain at least 8 characters.";return}
-    if(db.users[u]){m.textContent="Username already exists.";return}
-    db.users[u]={username:u,password:p,role:"user",createdAt:new Date().toISOString(),failedAttempts:0,lastLogin:"Never",favoriteRaces:[],favoriteHorses:[]};
-    saveDB();m.style.color="var(--success)";m.textContent="Account created successfully.";setTimeout(closeModal,700);
+function logout(){
+    currentSession={username:null,role:null};
+    document.getElementById("appPage").classList.add("hidden");
+    document.getElementById("loginPage").classList.remove("hidden");
 }
 function showAdminLogin(){
-    showModal(`<div class="modal-header"><h2>🛡️ Admin Login</h2><button class="close" onclick="closeModal()">×</button></div>
-      <div class="form-group"><label>Admin Password</label><input id="adminPassword" class="input" type="password"></div>
-      <button class="btn full" onclick="adminLogin()">Login</button>`);
+    document.getElementById("loginUsername").value="admin";
+    document.getElementById("loginPassword").value="admin123";
 }
-function adminLogin(){
-    const p=document.getElementById("adminPassword").value;
-    if(p!=="admin123"){alert("Incorrect Admin password.");return}
-    closeModal();currentSession={username:"admin",role:"admin"};
-    document.getElementById("loginPage").classList.add("hidden");document.getElementById("appPage").classList.remove("hidden");
-    document.getElementById("currentUser").textContent="admin";buildSidebar();showAdminDashboard();setTimeout(()=>beginAssistant(),350)
-}
-
-/* ---------- Sidebar ---------- */
-function buildSidebar(){
-    const s=document.getElementById("sidebar");
-    if(currentSession.role==="admin"){
-        s.innerHTML=`
-        <button onclick="showAdminDashboard()">🏠 Dashboard</button>
-        <button onclick="showAdminRaces()">🏇 Races</button>
-        <button onclick="showAdminHorses()">🐎 Horses</button>
-        <button onclick="showJockeys()">🏇 Jockeys</button>
-        <button onclick="showTrainers()">👤 Trainers</button>
-        <button onclick="showAdminUsers()">👥 Users</button>
-        <button onclick="showCalendar(false)">📅 Calendar</button>
-        <button onclick="showStatistics()">📊 Statistics</button>`;
-    }else{
-        s.innerHTML=`
-        <button onclick="showUserDashboard()">🏠 Dashboard</button>
-        <button onclick="showRaceList(false)">🏇 Race Schedule</button>
-        <button onclick="showRaceList(true)">⭐ Favorite Races</button>
-        <button onclick="showHorseList(false)">🐎 Horse Database</button>
-        <button onclick="showHorseList(true)">⭐ Favorite Horses</button>
-        <button onclick="showCalendar(true)">📅 Race Calendar</button>
-        <button onclick="showProfile()">⚙️ Profile</button>
-        <button onclick="showStatistics()">📊 Statistics</button>`;
+function showCreateAccount(){
+    const u=prompt("Enter new username:");
+    const p=prompt("Enter new password:");
+    if(u && p){
+        if(db.users[u]){alert("User already exists.");return;}
+        db.users[u]={username:u,password:p,role:"user",createdAt:new Date().toISOString(),favoriteRaces:[],favoriteHorses:[]};
+        saveDB();
+        alert("Account created. Please log in.");
     }
 }
 
-/* ---------- Dashboards ---------- */
-function dashboardAssistantHost(){
-    return `<div id="assistantHost"></div>`;
+function renderDashboard(){
+    setMain(`
+        <h2>Dashboard</h2>
+        <div class="stats">
+            ${stat("🏇","Total Races",db.races.length)}
+            ${stat("🐎","Total Horses",db.horses.length)}
+            ${stat("🏇","Jockeys",db.jockeys.length)}
+            ${stat("👔","Trainers",db.trainers.length)}
+        </div>
+        <div class="card">
+            <h3>Welcome to Horse Racing Manager</h3>
+            <p class="muted">Use the navigation options to manage your platform data.</p>
+        </div>
+    `);
 }
-function showAdminDashboard(){
-    const upcoming=db.races.filter(r=>["Upcoming","Today"].includes(raceStatus(r))).length;
-    const finished=db.races.filter(r=>raceStatus(r)==="Finished").length;
-    setMain(`${dashboardAssistantHost()}<h1>Admin Dashboard</h1><p class="muted">Full management access</p>
-      <div class="stats">
-        ${stat("👥","Users",Object.keys(db.users).length)}
-        ${stat("🏇","Races",db.races.length)}
-        ${stat("🐎","Horses",db.horses.length)}
-        ${stat("📅","Upcoming",upcoming)}
-        ${stat("🏆","Finished",finished)}
-      </div>
-      <div class="grid-3">
-        <div class="card"><h3>🏇 Race Management</h3><button class="btn full" onclick="showAdminRaces()">Manage Races</button><br><br><button class="btn secondary full" onclick="showCalendar(false)">Race Calendar</button></div>
-        <div class="card"><h3>🐎 Horse Management</h3><button class="btn full" onclick="showAdminHorses()">Manage Horses</button><br><br><button class="btn secondary full" onclick="showJockeys()">Manage Jockeys</button><br><br><button class="btn secondary full" onclick="showTrainers()">Manage Trainers</button></div>
-        <div class="card"><h3>👥 Administration</h3><button class="btn full" onclick="showAdminUsers()">Manage Users</button></div>
-      </div>`);
-    setTimeout(renderAssistantBar,0);
+function renderHorses(){
+    setMain(`<h2>Horses</h2><div class="card"><p>Horse management section.</p></div>`);
 }
-function showUserDashboard(){
-    const u=db.users[currentSession.username],fr=u.favoriteRaces||[],fh=u.favoriteHorses||[];
-    const upcoming=db.races.filter(r=>["Upcoming","Today"].includes(raceStatus(r))).length;
-    const nr=nextRace();
-    const notices=db.races.filter(r=>fr.includes(r.id)&&raceStatus(r)==="Today");
-    setMain(`${dashboardAssistantHost()}<h1>Welcome, ${esc(currentSession.username)}</h1><p class="muted">User Dashboard</p>
-      <div class="stats">${stat("📅","Upcoming Races",upcoming)}${stat("⭐","Favorite Races",fr.length)}${stat("⭐","Favorite Horses",fh.length)}${stat("🐎","Horses",db.horses.length)}</div>
-      <div class="card"><h2>🏇 Next Race</h2>${nr?`<h2>${esc(nr.name)}</h2><p>📅 ${nr.date} &nbsp; 🕐 ${nr.time}</p><p>📍 ${esc(nr.track)}</p><h1 style="color:var(--primary)">${countdown(nr)}</h1><button class="btn" onclick="showRaceDetails('${nr.id}',true)">Open Race</button>`:`<p class="muted">No upcoming race.</p>`}</div>
-      <br><div class="card"><h2>🔔 Notifications</h2>${notices.length?notices.map(r=>`<p style="padding:8px 0">🔔 Your favorite race is today: <strong>${esc(r.name)}</strong></p>`).join(""):`<p class="muted">No new notifications.</p>`}</div>`);
-    setTimeout(renderAssistantBar,0);
+function renderRaces(){
+    setMain(`<h2>Races</h2><div class="card"><p>Race management section.</p></div>`);
 }
 
-/* ---------- Race Management ---------- */
-function showAdminRaces(){
-    setMain(`${dashboardAssistantHost()}<h1>🏇 Race Management</h1><button class="btn" onclick="raceForm()">➕ Add New Race</button><br><br><div class="card"><div class="table-wrapper"><table>
-      <thead><tr><th>Race</th><th>Date</th><th>Time</th><th>Track</th><th>Status</th><th>Actions</th></tr></thead>
-      <tbody>${db.races.length?db.races.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.date}</td><td>${r.time}</td><td>${esc(r.track)}</td><td>${badge(raceStatus(r))}</td><td><div class="actions"><button class="btn small" onclick="showRaceDetails('${r.id}',false)">Details</button><button class="btn small secondary" onclick="raceForm('${r.id}')">Edit</button><button class="btn small warning" onclick="startResultAssistant('${r.id}')">🎤 Enter Results</button><button class="btn small danger" onclick="deleteRace('${r.id}')">Delete</button></div></td></tr>`).join(""):`<tr><td colspan="6">No races have been added yet.</td></tr>`}</tbody>
-    </table></div></div>`);
-    setTimeout(renderAssistantBar,0);
-}
-function raceForm(raceId=null){
-    const r=raceId?getRace(raceId):null;
-    showModal(`<div class="modal-header"><h2>${r?"Edit Race":"Add Race"}</h2><button class="close" onclick="closeModal()">×</button></div>
-      <div class="form-group"><label>Race Name</label><input id="raceName" class="input" value="${esc(r?.name||"")}"></div>
-      <div class="grid-2"><div class="form-group"><label>Date</label><input id="raceDate" class="input" type="date" value="${r?.date||""}"></div><div class="form-group"><label>Time</label><input id="raceTime" class="input" type="time" value="${r?.time||""}"></div></div>
-      <div class="form-group"><label>Hippodrome</label><input id="raceTrack" class="input" value="${esc(r?.track||"")}"></div>
-      <div class="grid-2"><div class="form-group"><label>Distance</label><input id="raceDistance" class="input" value="${esc(r?.distance||"")}"></div><div class="form-group"><label>Prize</label><input id="racePrize" class="input" value="${esc(r?.prize||"")}"></div></div>
-      <div class="form-group"><label>Notes</label><textarea id="raceNotes" class="textarea">${esc(r?.notes||"")}</textarea></div>
-      <button class="btn full" onclick="saveRace('${raceId||""}')">💾 Save Race</button>`);
-}
-function saveRace(raceId){
-    const data={name:document.getElementById("raceName").value.trim(),date:document.getElementById("raceDate").value,time:document.getElementById("raceTime").value,track:document.getElementById("raceTrack").value.trim(),distance:document.getElementById("raceDistance").value.trim(),prize:document.getElementById("racePrize").value.trim(),notes:document.getElementById("raceNotes").value.trim()};
-    if(!data.name||!data.date||!data.time||!data.track){alert("Name, date, time and hippodrome are required.");return}
-    if(raceId){Object.assign(getRace(raceId),data)}else db.races.push({id:id("R",db.races),...data,horseIds:[],results:{}});
-    saveDB();closeModal();showAdminRaces();
-}
-function deleteRace(i){
-    if(!confirm("Delete this race?"))return;
-    db.races=db.races.filter(r=>r.id!==i);saveDB();recalcHorseStats();showAdminRaces();
-}
-
-/* ---------- Race Details & results ---------- */
-function showRaceDetails(rid,userMode){
-    const r=getRace(rid);if(!r)return;
-    const u=db.users[currentSession.username],fav=(u.favoriteRaces||[]).includes(rid),entries=r.horseIds||[],res=r.results||{};
-    const ordered=Object.entries(res).sort((a,b)=>Number(a[1])-Number(b[1]));
-    setMain(`${dashboardAssistantHost()}<button class="btn secondary" onclick="${userMode?"showUserDashboard()":"showAdminRaces()"}">← Back</button><br><br>
-      <div class="card"><h1>${esc(r.name)}</h1>${badge(raceStatus(r))}<br><br>
-        <p>📅 <strong>Date:</strong> ${r.date}</p><p>🕐 <strong>Time:</strong> ${r.time}</p><p>📍 <strong>Track:</strong> ${esc(r.track)}</p><p>📏 <strong>Distance:</strong> ${esc(r.distance||"N/A")}</p><p>💰 <strong>Prize:</strong> ${esc(r.prize||"N/A")}</p><p style="margin-top:10px">${esc(r.notes||"")}</p><br>
-        ${userMode?`<button class="btn" onclick="toggleRaceFavorite('${rid}')">${fav?"⭐ Remove Favorite":"☆ Add to Favorites"}</button>`:`<div class="actions"><button class="btn" onclick="raceForm('${rid}')">✏️ Edit Race</button><button class="btn secondary" onclick="manageEntries('${rid}')">🐎 Manage Entries</button><button class="btn warning" onclick="startResultAssistant('${rid}')">🎤 Enter Results by Voice</button></div>`}
-      </div><br>
-      <div class="card"><h2>🐎 Starting List</h2>${entries.length?`<div class="table-wrapper"><table><thead><tr><th>#</th><th>Horse</th><th>Jockey</th><th>Trainer</th><th>Weight</th></tr></thead><tbody>${entries.map((hid,i)=>{const h=getHorse(hid);return h?`<tr><td>${h.number||i+1}</td><td>${esc(h.name)}</td><td>${esc(jockeyName(h.jockeyId))}</td><td>${esc(trainerName(h.trainerId))}</td><td>${esc(h.weight||"")}</td></tr>`:""}).join("")}</tbody></table></div>`:`<p class="muted">No horses entered yet.</p>`}</div>
-      <br><div class="card"><h2>🏆 Results</h2>${ordered.length?`<div class="table-wrapper"><table><thead><tr><th>Position</th><th>Horse</th></tr></thead><tbody>${ordered.map(([hid,p])=>`<tr><td>${Number(p)===1?"🥇 1st":Number(p)===2?"🥈 2nd":Number(p)===3?"🥉 3rd":p}</td><td>${esc(getHorse(hid)?.name||"Unknown")}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">Results have not been entered yet.</p>`}</div>
-      <br><div class="card"><h2>⏳ Countdown</h2><h1 style="color:var(--primary)">${countdown(r)}</h1></div>`);
-    setTimeout(renderAssistantBar,0);
-}
-function toggleRaceFavorite(rid){
-    const u=db.users[currentSession.username];u.favoriteRaces||=[];
-    u.favoriteRaces.includes(rid)?u.favoriteRaces=u.favoriteRaces.filter(x=>x!==rid):u.favoriteRaces.push(rid);
-    saveDB();showRaceDetails(rid,true)
-}
-function manageEntries(rid){
-    const r=getRace(rid),sel=new Set(r.horseIds||[]);
-    showModal(`<div class="modal-header"><h2>Race Entries</h2><button class="close" onclick="closeModal()">×</button></div>${db.horses.map(h=>`<label style="display:block;padding:10px;border-bottom:1px solid var(--border)"><input type="checkbox" value="${h.id}" ${sel.has(h.id)?"checked":""}> #${esc(h.number||"")} ${esc(h.name)}</label>`).join("")}<br><button class="btn full" onclick="saveEntries('${rid}')">💾 Save Entries</button>`)
-}
-function saveEntries(rid){
-    const r=getRace(rid);r.horseIds=[...document.querySelectorAll('#modalContent input[type=checkbox]:checked')].map(x=>x.value);saveDB();closeModal();showRaceDetails(rid,false)
-}
-
-/* ---------- Race list/calendar ---------- */
-function showRaceList(favOnly=false){
-    setMain(`${dashboardAssistantHost()}<h1>${favOnly?"⭐ Favorite Races":"🏇 Race Schedule"}</h1><div class="card"><div class="grid-2"><input id="raceSearch" class="input" placeholder="Search races..."><select id="raceStatus" class="select"><option>All</option><option>Upcoming</option><option>Today</option><option>Finished</option></select></div><br><button class="btn" onclick="renderRaceList(${favOnly})">🔍 Search</button></div><br><div id="raceListResults" class="card"></div>`);
-    renderRaceList(favOnly);setTimeout(renderAssistantBar,0)
-}
-function renderRaceList(favOnly){
-    const search=(document.getElementById("raceSearch")?.value||"").toLowerCase(),sf=document.getElementById("raceStatus")?.value||"All",u=db.users[currentSession.username],f=u.favoriteRaces||[];
-    const list=db.races.filter(r=>(!favOnly||f.includes(r.id))&&(sf==="All"||raceStatus(r)===sf)&&(`${r.name} ${r.date} ${r.track}`.toLowerCase().includes(search)));
-    document.getElementById("raceListResults").innerHTML=`<div class="table-wrapper"><table><thead><tr><th>Favorite</th><th>Race</th><th>Date</th><th>Time</th><th>Track</th><th>Status</th><th>Details</th></tr></thead><tbody>${list.length?list.map(r=>`<tr><td><button class="star" onclick="toggleRaceFavoriteFromList('${r.id}',${favOnly})">${f.includes(r.id)?"⭐":"☆"}</button></td><td>${esc(r.name)}</td><td>${r.date}</td><td>${r.time}</td><td>${esc(r.track)}</td><td>${badge(raceStatus(r))}</td><td><button class="btn small" onclick="showRaceDetails('${r.id}',true)">Open</button></td></tr>`).join(""):`<tr><td colspan="7">No races found.</td></tr>`}</tbody></table></div>`
-}
-function toggleRaceFavoriteFromList(i,f){toggleRaceFavorite(i);showRaceList(f)}
-function showCalendar(userMode){
-    const groups={};
-    [...db.races].sort((a,b)=>(raceDate(a)?.getTime()||Infinity)-(raceDate(b)?.getTime()||Infinity)).forEach(r=>(groups[r.date] ||= []).push(r));
-    setMain(`${dashboardAssistantHost()}<h1>📅 Race Calendar</h1>${Object.keys(groups).length?Object.entries(groups).map(([d,rs])=>`<div class="calendar-day card"><h3>${d}</h3>${rs.map(r=>`<button class="btn race-calendar-item" onclick="showRaceDetails('${r.id}',${userMode})">🕐 ${r.time} — ${esc(r.name)}</button>`).join("")}</div>`).join(""):`<div class="card">No races scheduled.</div>`}`);
-    setTimeout(renderAssistantBar,0)
-}
-
-/* ---------- Horses ---------- */
-function showAdminHorses(){
-    setMain(`${dashboardAssistantHost()}<h1>🐎 Horse Management</h1><div class="actions"><button class="btn" onclick="horseForm()">➕ Add Horse</button><button class="btn secondary" onclick="startAddHorseAssistant()">🎤 Add Horse by Voice</button></div><br><div class="card"><div class="table-wrapper"><table><thead><tr><th>Name</th><th>Number</th><th>Age</th><th>Jockey</th><th>Trainer</th><th>Actions</th></tr></thead><tbody>${db.horses.length?db.horses.map(h=>`<tr><td>${esc(h.name)}</td><td>${esc(h.number)}</td><td>${esc(h.age)}</td><td>${esc(jockeyName(h.jockeyId))}</td><td>${esc(trainerName(h.trainerId))}</td><td><div class="actions"><button class="btn small" onclick="showHorseProfile('${h.id}',false)">Profile</button><button class="btn small secondary" onclick="horseForm('${h.id}')">Edit</button><button class="btn small danger" onclick="deleteHorse('${h.id}')">Delete</button></div></td></tr>`).join(""):`<tr><td colspan="6">No horses have been added.</td></tr>`}</tbody></table></div></div>`);
-    setTimeout(renderAssistantBar,0)
-}
-function showHorseList(favOnly=false){
-    const u=db.users[currentSession.username],f=u.favoriteHorses||[],list=db.horses.filter(h=>!favOnly||f.includes(h.id));
-    setMain(`${dashboardAssistantHost()}<h1>${favOnly?"⭐ Favorite Horses":"🐎 Horse Database"}</h1><div class="card"><div class="table-wrapper"><table><thead><tr><th>Favorite</th><th>Horse</th><th>Age</th><th>Jockey</th><th>Trainer</th><th>Profile</th></tr></thead><tbody>${list.length?list.map(h=>`<tr><td><button class="star" onclick="toggleHorseFavorite('${h.id}',${favOnly})">${f.includes(h.id)?"⭐":"☆"}</button></td><td>${esc(h.name)}</td><td>${esc(h.age)}</td><td>${esc(jockeyName(h.jockeyId))}</td><td>${esc(trainerName(h.trainerId))}</td><td><button class="btn small" onclick="showHorseProfile('${h.id}',true)">Open</button></td></tr>`).join(""):`<tr><td colspan="6">No horses found.</td></tr>`}</tbody></table></div></div>`);
-    setTimeout(renderAssistantBar,0)
-}
-function toggleHorseFavorite(i,favOnly){
-    const u=db.users[currentSession.username];u.favoriteHorses||=[];u.favoriteHorses.includes(i)?u.favoriteHorses=u.favoriteHorses.filter(x=>x!==i):u.favoriteHorses.push(i);saveDB();showHorseList(favOnly)
-}
-function horseForm(hid=null){
-    const h=hid?getHorse(hid):null;
-    showModal(`<div class="modal-header"><h2>${h?"Edit Horse":"Add Horse"}</h2><button class="close" onclick="closeModal()">×</button></div>
-    <div class="grid-2">
-    <div class="form-group"><label>Name</label><input id="horseName" class="input" value="${esc(h?.name||"")}"></div>
-    <div class="form-group"><label>Age</label><input id="horseAge" class="input" value="${esc(h?.age||"")}"></div>
-    <div class="form-group"><label>Sex</label><input id="horseSex" class="input" value="${esc(h?.sex||"")}"></div>
-    <div class="form-group"><label>Breed</label><input id="horseBreed" class="input" value="${esc(h?.breed||"")}"></div>
-    <div class="form-group"><label>Race Number</label><input id="horseNumber" class="input" value="${esc(h?.number||"")}"></div>
-    <div class="form-group"><label>Weight</label><input id="horseWeight" class="input" value="${esc(h?.weight||"")}"></div>
-    <div class="form-group"><label>Jockey</label><select id="horseJockey" class="select"><option value="">None</option>${db.jockeys.map(j=>`<option value="${j.id}" ${h?.jockeyId===j.id?"selected":""}>${esc(j.name)}</option>`).join("")}</select></div>
-    <div class="form-group"><label>Trainer</label><select id="horseTrainer" class="select"><option value="">None</option>${db.trainers.map(t=>`<option value="${t.id}" ${h?.trainerId===t.id?"selected":""}>${esc(t.name)}</option>`).join("")}</select></div>
-    </div>
-    <div class="grid-3"><div class="form-group"><label>Wins</label><input id="horseWins" class="input" value="${h?.wins||0}"></div><div class="form-group"><label>Second Places</label><input id="horseSeconds" class="input" value="${h?.seconds||0}"></div><div class="form-group"><label>Third Places</label><input id="horseThirds" class="input" value="${h?.thirds||0}"></div></div>
-    <button class="btn full" onclick="saveHorse('${hid||""}')">💾 Save Horse</button>`)
-}
-function saveHorse(hid){
-    const d={name:document.getElementById("horseName").value.trim(),age:document.getElementById("horseAge").value.trim(),sex:document.getElementById("horseSex").value.trim(),breed:document.getElementById("horseBreed").value.trim(),number:document.getElementById("horseNumber").value.trim(),weight:document.getElementById("horseWeight").value.trim(),jockeyId:document.getElementById("horseJockey").value,trainerId:document.getElementById("horseTrainer").value,wins:Number(document.getElementById("horseWins").value)||0,seconds:Number(document.getElementById("horseSeconds").value)||0,thirds:Number(document.getElementById("horseThirds").value)||0};
-    if(!d.name){alert("Horse name is required.");return}
-    if(hid)Object.assign(getHorse(hid),d);else db.horses.push({id:id("H",db.horses),...d});
-    saveDB();closeModal();showAdminHorses()
-}
-function deleteHorse(i){
-    if(!confirm("Delete this horse?"))return;
-    db.horses=db.horses.filter(h=>h.id!==i);
-    db.races.forEach(r=>{r.horseIds=(r.horseIds||[]).filter(x=>x!==i);if(r.results)delete r.results[i]});
-    saveDB();recalcHorseStats();showAdminHorses()
-}
-function showHorseProfile(i,userMode){
-    const h=getHorse(i);if(!h)return;
-    const u=db.users[currentSession.username],fav=(u.favoriteHorses||[]).includes(i);
-    setMain(`${dashboardAssistantHost()}<button class="btn secondary" onclick="${userMode?"showHorseList(false)":"showAdminHorses()"}">← Back</button><br><br>
-      <div class="card"><h1>🐎 ${esc(h.name)}</h1><div class="grid-2"><p><strong>Age:</strong> ${esc(h.age)}</p><p><strong>Sex:</strong> ${esc(h.sex)}</p><p><strong>Breed:</strong> ${esc(h.breed)}</p><p><strong>Number:</strong> ${esc(h.number)}</p><p><strong>Weight:</strong> ${esc(h.weight)}</p><p><strong>Jockey:</strong> ${esc(jockeyName(h.jockeyId))}</p><p><strong>Trainer:</strong> ${esc(trainerName(h.trainerId))}</p><p><strong>Wins:</strong> ${h.wins||0}</p><p><strong>Second Places:</strong> ${h.seconds||0}</p><p><strong>Third Places:</strong> ${h.thirds||0}</p></div><br>${userMode?`<button class="btn" onclick="toggleHorseFavoriteProfile('${i}')">${fav?"⭐ Remove Favorite":"☆ Add to Favorites"}</button>`:`<div class="actions"><button class="btn" onclick="horseForm('${i}')">✏️ Edit Horse</button><button class="btn danger" onclick="deleteHorse('${i}')">🗑 Delete Horse</button></div>`}</div>
-      <br><div class="card"><h2>🏆 Race History</h2><div class="table-wrapper"><table><thead><tr><th>Race</th><th>Position</th><th>Date</th></tr></thead><tbody>${db.races.filter(r=>r.results&&r.results[i]).map(r=>`<tr><td>${esc(r.name)}</td><td>${r.results[i]}</td><td>${r.date}</td></tr>`).join("")||`<tr><td colspan="3">No race history yet.</td></tr>`}</tbody></table></div></div>`);
-    setTimeout(renderAssistantBar,0)
-}
-function toggleHorseFavoriteProfile(i){
-    const u=db.users[currentSession.username];u.favoriteHorses||=[];u.favoriteHorses.includes(i)?u.favoriteHorses=u.favoriteHorses.filter(x=>x!==i):u.favoriteHorses.push(i);saveDB();showHorseProfile(i,true)
-}
-
-/* ---------- Jockeys/Trainers/Users/Profile ---------- */
-function showJockeys(){
-    setMain(`${dashboardAssistantHost()}<h1>🏇 Jockey Management</h1><button class="btn" onclick="jockeyForm()">➕ Add Jockey</button><br><br><div class="card"><div class="table-wrapper"><table><thead><tr><th>Name</th><th>Age</th><th>Wins</th><th>Actions</th></tr></thead><tbody>${db.jockeys.length?db.jockeys.map(j=>`<tr><td>${esc(j.name)}</td><td>${esc(j.age)}</td><td>${j.wins||0}</td><td><button class="btn small secondary" onclick="jockeyForm('${j.id}')">Edit</button> <button class="btn small danger" onclick="deleteJockey('${j.id}')">Delete</button></td></tr>`).join(""):`<tr><td colspan="4">No jockeys added.</td></tr>`}</tbody></table></div></div>`);
-    setTimeout(renderAssistantBar,0)
-}
-function jockeyForm(i=null){
-    const j=i?getJockey(i):null;
-    showModal(`<div class="modal-header"><h2>${j?"Edit Jockey":"Add Jockey"}</h2><button class="close" onclick="closeModal()">×</button></div>
-    <div class="form-group"><label>Name</label><input id="jockeyName" class="input" value="${esc(j?.name||"")}"></div>
-    <div class="form-group"><label>Age</label><input id="jockeyAge" class="input" value="${esc(j?.age||"")}"></div>
-    <div class="form-group"><label>Wins</label><input id="jockeyWins" class="input" value="${j?.wins||0}"></div>
-    <button class="btn full" onclick="saveJockey('${i||""}')">💾 Save</button>`)
-}
-function saveJockey(i){
-    const d={name:document.getElementById("jockeyName").value.trim(),age:document.getElementById("jockeyAge").value.trim(),wins:Number(document.getElementById("jockeyWins").value)||0};
-    if(!d.name)return alert("Jockey name is required.");
-    if(i)Object.assign(getJockey(i),d);else db.jockeys.push({id:id("J",db.jockeys),...d});
-    saveDB();closeModal();showJockeys()
-}
-function deleteJockey(i){
-    if(!confirm("Delete this jockey?"))return;
-    db.jockeys=db.jockeys.filter(j=>j.id!==i);db.horses.forEach(h=>{if(h.jockeyId===i)h.jockeyId=""});saveDB();showJockeys()
-}
-function showTrainers(){
-    setMain(`${dashboardAssistantHost()}<h1>👤 Trainer Management</h1><button class="btn" onclick="trainerForm()">➕ Add Trainer</button><br><br><div class="card"><div class="table-wrapper"><table><thead><tr><th>Name</th><th>Stable</th><th>Wins</th><th>Actions</th></tr></thead><tbody>${db.trainers.length?db.trainers.map(t=>`<tr><td>${esc(t.name)}</td><td>${esc(t.stable)}</td><td>${t.wins||0}</td><td><button class="btn small secondary" onclick="trainerForm('${t.id}')">Edit</button> <button class="btn small danger" onclick="deleteTrainer('${t.id}')">Delete</button></td></tr>`).join(""):`<tr><td colspan="4">No trainers added.</td></tr>`}</tbody></table></div></div>`);
-    setTimeout(renderAssistantBar,0)
-}
-function trainerForm(i=null){
-    const t=i?getTrainer(i):null;
-    showModal(`<div class="modal-header"><h2>${t?"Edit Trainer":"Add Trainer"}</h2><button class="close" onclick="closeModal()">×</button></div>
-    <div class="form-group"><label>Name</label><input id="trainerName" class="input" value="${esc(t?.name||"")}"></div>
-    <div class="form-group"><label>Stable</label><input id="trainerStable" class="input" value="${esc(t?.stable||"")}"></div>
-    <div class="form-group"><label>Wins</label><input id="trainerWins" class="input" value="${t?.wins||0}"></div>
-    <button class="btn full" onclick="saveTrainer('${i||""}')">💾 Save</button>`)
-}
-function saveTrainer(i){
-    const d={name:document.getElementById("trainerName").value.trim(),stable:document.getElementById("trainerStable").value.trim(),wins:Number(document.getElementById("trainerWins").value)||0};
-    if(!d.name)return alert("Trainer name is required.");
-    if(i)Object.assign(getTrainer(i),d);else db.trainers.push({id:id("T",db.trainers),...d});
-    saveDB();closeModal();showTrainers()
-}
-function deleteTrainer(i){
-    if(!confirm("Delete this trainer?"))return;
-    db.trainers=db.trainers.filter(t=>t.id!==i);db.horses.forEach(h=>{if(h.trainerId===i)h.trainerId=""});saveDB();showTrainers()
-}
-function showAdminUsers(){
-    setMain(`${dashboardAssistantHost()}<h1>👥 User Management</h1><div class="card"><div class="table-wrapper"><table><thead><tr><th>Username</th><th>Role</th><th>Status</th><th>Last Login</th><th>Actions</th></tr></thead><tbody>${Object.values(db.users).map(u=>`<tr><td>${esc(u.username)}</td><td>${u.role}</td><td>${(u.failedAttempts||0)>=3?'<span class="status finished">LOCKED</span>':'<span class="status upcoming">ACTIVE</span>'}</td><td>${esc(u.lastLogin||"Never")}</td><td>${u.username==="admin"?'<button class="btn small" onclick="showUserDetails(\'admin\')">Details</button>':`<button class="btn small" onclick="showUserDetails('${esc(u.username)}')">Details</button> <button class="btn small warning" onclick="unlockUser('${esc(u.username)}')">Unlock</button> <button class="btn small danger" onclick="deleteUser('${esc(u.username)}')">Delete</button>`}</td></tr>`).join("")}</tbody></table></div></div>`);
-    setTimeout(renderAssistantBar,0)
-}
-function showUserDetails(i){
-    const u=db.users[i];
-    showModal(`<div class="modal-header"><h2>User Details</h2><button class="close" onclick="closeModal()">×</button></div><p><strong>Username:</strong> ${esc(i)}</p><p><strong>Created:</strong> ${new Date(u.createdAt).toLocaleString()}</p><p><strong>Last login:</strong> ${esc(u.lastLogin||"Never")}</p><p><strong>Failed attempts:</strong> ${u.failedAttempts||0}</p><p><strong>Password:</strong> Protected</p>`)
-}
-function unlockUser(i){if(db.users[i])db.users[i].failedAttempts=0;saveDB();showAdminUsers()}
-function deleteUser(i){if(i==="admin")return;if(!confirm("Delete this user?"))return;delete db.users[i];saveDB();showAdminUsers()}
-function showProfile(){
-    const u=db.users[currentSession.username];
-    setMain(`${dashboardAssistantHost()}<h1>⚙️ Profile Settings</h1><div class="card">
-    <div class="form-group"><label>Username</label><input id="profileUsername" class="input" value="${esc(currentSession.username)}"></div>
-    <div class="form-group"><label>Current Password</label><input id="profileCurrentPassword" class="input" type="password"></div>
-    <div class="form-group"><label>New Password</label><input id="profileNewPassword" class="input" type="password"></div>
-    <button class="btn" onclick="saveProfile()">💾 Save Changes</button></div>`);
-    setTimeout(renderAssistantBar,0)
-}
-function saveProfile(){
-    const old=currentSession.username,n=document.getElementById("profileUsername").value.trim(),cp=document.getElementById("profileCurrentPassword").value,np=document.getElementById("profileNewPassword").value,u=db.users[old];
-    if(cp!==u.password)return alert("Current password is incorrect.");
-    if(n!==old&&db.users[n])return alert("Username already exists.");
-    if(np&&np.length<8)return alert("New password must contain at least 8 characters.");
-    if(np)u.password=np;
-    if(n!==old){u.username=n;db.users[n]=u;delete db.users[old];currentSession.username=n}
-    saveDB();document.getElementById("currentUser").textContent=n;showUserDashboard();speakText("Profile updated successfully.")
-}
-
-
-/* ---------- Official public website navigation ---------- */
-function openManager(){
-    document.getElementById("publicPage").classList.add("hidden");
-    document.getElementById("loginPage").classList.remove("hidden");
-    window.scrollTo(0,0);
-}
-
-function backToWebsite(){
-    document.getElementById("loginPage").classList.add("hidden");
-    document.getElementById("publicPage").classList.remove("hidden");
-    window.scrollTo(0,0);
-}
-
-/* ---------- Init ---------- */
-loadDB();
-loadTheme();
+/* ---------- App Initialization ---------- */
+window.addEventListener("DOMContentLoaded",()=>{
+    loadDB();
+    loadTheme();
+});
 </script>
-
-<!-- Vercel Analytics -->
-<script>
-  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/insights/script.js"></script>
-<script defer src="/_vercel/speed-insights/script.js"></script>
 </body>
 </html>
