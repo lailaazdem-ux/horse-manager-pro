@@ -1,0 +1,21 @@
+{
+  "name": "horse-manager-pro",
+  "version": "1.0.0",
+  "description": "Horse Racing Manager - Official Racing Management Platform",
+  "type": "module",
+  "scripts": {
+    "dev": "npx http-server . -p 3000",
+    "build": "echo 'No build step required for static site'",
+    "lint": "echo 'No linter configured yet'"
+  },
+  "keywords": [
+    "horse-racing",
+    "management",
+    "racing"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
+  }
+}
