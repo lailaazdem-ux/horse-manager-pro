@@ -151,50 +151,20 @@ function showAdminDashboard() {
 // RACES
 // ================================
 
-function showRaces() {
-
-    document.querySelector(
-        ".dashboard-content"
-    ).innerHTML = `
-
-        <h2>
-            🏇 Horse Races
-        </h2>
-
-        <p>
-            No races have been added yet.
-        </p>
-
-        <button onclick="showAdminDashboard()">
-            ← Back
-        </button>
-    `;
+function renderRaces(){
+    setMain(`<h2>Races</h2><div class="card"><p>Race management section.</p></div>`);
 }
+
 
 
 // ================================
 // HORSES
 // ================================
 
-function showHorses() {
-
-    document.querySelector(
-        ".dashboard-content"
-    ).innerHTML = `
-
-        <h2>
-            🐎 Horses
-        </h2>
-
-        <p>
-            No horses have been added yet.
-        </p>
-
-        <button onclick="showAdminDashboard()">
-            ← Back
-        </button>
-    `;
+function renderHorses(){
+    setMain(`<h2>Horses</h2><div class="card"><p>Horse management section.</p></div>`);
 }
+
 
 
 // ================================
