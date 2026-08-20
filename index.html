@@ -75,7 +75,7 @@ h3{font-size:18px;margin-bottom:12px}
     border-radius:50%;background:linear-gradient(135deg,#1769aa,#0d4773);border:5px solid #f5b942;
     font-size:55px;box-shadow:0 12px 30px rgba(23,105,170,.3)
 }
-.login-card h1{color:#1769aa;font-size:31px}
+.login-card h2{color:#1769aa;font-size:28px}
 .login-card p{color:#64748b;margin-bottom:28px}
 .form-group{margin-bottom:16px}
 .form-group label{display:block;text-align:left;margin-bottom:7px;font-size:13px;font-weight:700}
@@ -518,7 +518,9 @@ th{font-size:12px;text-transform:uppercase;color:var(--muted)}
 <div class="login-card">
     <button class="btn secondary small public-back" onclick="backToWebsite()">← Official Website</button>
     <div class="logo">🐎</div>
-    <h1>Horse Racing Manager</h1>
+    
+    <!-- Changed second <h1> to <h2> -->
+    <h2>Welcome Back / Login</h2>
     <p>Professional Racing Management System</p>
 
     <div class="form-group">
@@ -874,10 +876,10 @@ function renderDashboard(){
     `);
 }
 function renderHorses(){
-    setMain(`<h2>Horses</h2><div class="card"><p>Horse management section.</p></div>`);
+    setMain(``<h2>Horses</h2><div class="card"><p>Horse management section.</p></div>`);
 }
 function renderRaces(){
-    setMain(`<h2>Races</h2><div class="card"><p>Race management section.</p></div>`);
+    setMain(``<h2>Races</h2><div class="card"><p>Race management section.</p></div>`);
 }
 
 /* ---------- App Initialization ---------- */
