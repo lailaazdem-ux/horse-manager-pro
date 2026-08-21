@@ -1,0 +1,22 @@
+{
+  "name": "horse-racing-manager",
+  "version": "1.0.0",
+  "description": "Horse Racing Manager Desktop App",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.horsemanager.app",
+    "win": {
+      "target": "nsis"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lailaazdem-ux/horse-manager-pro.git"
+  },
+  "author": "",
+  "license": "ISC"
+}
