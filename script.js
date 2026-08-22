@@ -1,3 +1,44 @@
+// Add renderStatistics directly above your intents array
+function renderStatistics() {
+    const modal = document.getElementById('modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        const modalContent = document.getElementById('modalContent');
+        if (modalContent) modalContent.innerHTML = '';
+    }
+
+    const main = document.getElementById('mainContent');
+    if (!main) return;
+
+    const totalHorses = (db.horses || []).length;
+    const totalRaces = (db.races || []).length;
+    const totalJockeys = (db.jockeys || []).length;
+    const totalTrainers = (db.trainers || []).length;
+
+    main.innerHTML = `
+        <div class="page-header">
+            <h2>📊 Statistics & Analytics</h2>
+        </div>
+        <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+            <div class="card" style="padding: 1.5rem; background: var(--card-bg, #fff); border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                <h3>Total Horses</h3>
+                <p style="font-size: 2rem; font-weight: bold; color: #2563eb;">${totalHorses}</p>
+            </div>
+            <div class="card" style="padding: 1.5rem; background: var(--card-bg, #fff); border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                <h3>Total Races</h3>
+                <p style="font-size: 2rem; font-weight: bold; color: #16a34a;">${totalRaces}</p>
+            </div>
+            <div class="card" style="padding: 1.5rem; background: var(--card-bg, #fff); border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                <h3>Total Jockeys</h3>
+                <p style="font-size: 2rem; font-weight: bold; color: #d97706;">${totalJockeys}</p>
+            </div>
+            <div class="card" style="padding: 1.5rem; background: var(--card-bg, #fff); border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                <h3>Total Trainers</h3>
+                <p style="font-size: 2rem; font-weight: bold; color: #9333ea;">${totalTrainers}</p>
+            </div>
+        </div>
+    `;
+}
 const intents = [
         {
             name:"help",
