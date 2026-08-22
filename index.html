@@ -1730,7 +1730,41 @@ function saveProfile(){
     if(n!==old){u.username=n;db.users[n]=u;delete db.users[old];currentSession.username=n}
     saveDB();document.getElementById("currentUser").textContent=n;showUserDashboard();speakText("Profile updated successfully.")
 }
+/* ---------- Statistics & Analytics ---------- */
+function renderStatistics() {
+    const totalHorses = (db.horses || []).length;
+    const totalRaces = (db.races || []).length;
+    const totalJockeys = (db.jockeys || []).length;
+    const totalTrainers = (db.trainers || []).length;
 
+    setMain(`
+        ${dashboardAssistantHost()}
+        <h1>📊 Statistics & Analytics</h1>
+        <div class="grid-2">
+            <div class="card">
+                <h3>Total Horses</h3>
+                <p style="font-size: 2rem; font-weight: bold; color: var(--primary, #2563eb);">${totalHorses}</p>
+            </div>
+            <div class="card">
+                <h3>Total Races</h3>
+                <p style="font-size: 2rem; font-weight: bold; color: #16a34a;">${totalRaces}</p>
+            </div>
+            <div class="card">
+                <h3>Total Jockeys</h3>
+                <p style="font-size: 2rem; font-weight: bold; color: #d97706;">${totalJockeys}</p>
+            </div>
+            <div class="card">
+                <h3>Total Trainers</h3>
+                <p style="font-size: 2rem; font-weight: bold; color: #9333ea;">${totalTrainers}</p>
+            </div>
+        </div>
+    `);
+    setTimeout(renderAssistantBar, 0);
+}
+
+function showStatistics() {
+    renderStatistics();
+}
 
 /* ---------- Official public website navigation ---------- */
 function openManager(){
