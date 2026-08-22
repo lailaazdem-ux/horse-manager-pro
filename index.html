@@ -1481,7 +1481,7 @@ function buildSidebar(){
         <button onclick="showTrainers()">👤 Trainers</button>
         <button onclick="showAdminUsers()">👥 Users</button>
         <button onclick="showCalendar(false)">📅 Calendar</button>
-        <button onclick="showStatistics()">📊 Statistics</button>`;
+        <button onclick="renderStatistics()">📊 Statistics</button>`;
     }else{
         s.innerHTML=`
         <button onclick="showUserDashboard()">🏠 Dashboard</button>
@@ -1491,7 +1491,7 @@ function buildSidebar(){
         <button onclick="showHorseList(true)">⭐ Favorite Horses</button>
         <button onclick="showCalendar(true)">📅 Race Calendar</button>
         <button onclick="showProfile()">⚙️ Profile</button>
-        <button onclick="showStatistics()">📊 Statistics</button>`;
+        <button onclick="renderStatistics()">📊 Statistics</button>`;
     }
 }
 
