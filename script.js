@@ -132,3 +132,45 @@ const intents = [
             best = intent;
         }
     }
+    if (best && maxScore > 0) {
+        switch (best.name) {
+            case "statistics":
+                renderStatistics();
+                break;
+            case "dashboard":
+                renderDashboard();
+                break;
+            case "horse":
+                renderHorses();
+                break;
+            case "addHorse":
+                renderAddHorseForm();
+                break;
+            case "race":
+                renderRaces();
+                break;
+            case "profile":
+                renderProfile();
+                break;
+            case "calendar":
+                renderCalendar();
+                break;
+            case "jockeys":
+                renderJockeys();
+                break;
+            case "trainers":
+                renderTrainers();
+                break;
+            case "users":
+                renderUsers();
+                break;
+            case "logout":
+                logout();
+                break;
+            default:
+                renderDashboard();
+                break;
+        }
+    } else {
+        speak("Sorry, I didn't understand that command.");
+    }
