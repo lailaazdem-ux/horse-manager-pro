@@ -84,6 +84,27 @@ const intents = [
             ]
         },
         {
+            name:"statistics",
+            phrases:[
+                "statistics",
+                "show statistics",
+                "open statistics",
+                "view statistics",
+                "stats",
+                "analytics",
+                "show stats",
+                "statistics page",
+                "statistics screen"
+            ],
+            words:[
+                "statistics",
+                "stats",
+                "analytics",
+                "metrics",
+                "charts"
+            ]
+        },
+        {
             name:"logout",
             phrases:[
                 "log out",
@@ -99,7 +120,7 @@ const intents = [
                 "disconnect",
                 "exit"
             ]
-        }
+        },
     ];
 
     let best = null;
