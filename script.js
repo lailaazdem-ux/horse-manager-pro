@@ -175,43 +175,4 @@ const intents = [
     } else {
         speak("Sorry, I didn't understand that command.");
     }
-    // Add this at the very bottom of script.js
-function renderStatistics() {
-    const main = document.getElementById('mainContent');
-    if (!main) return;
 
-    // Safely fetch database counts
-    const totalHorses = (typeof db !== 'undefined' && db.horses) ? db.horses.length : 0;
-    const totalRaces = (typeof db !== 'undefined' && db.races) ? db.races.length : 0;
-    const totalJockeys = (typeof db !== 'undefined' && db.jockeys) ? db.jockeys.length : 0;
-    const totalTrainers = (typeof db !== 'undefined' && db.trainers) ? db.trainers.length : 0;
-
-    main.innerHTML = `
-        <div style="padding: 1.5rem;">
-            <h2>📊 Statistics & Analytics</h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
-                <div style="padding: 1.5rem; background: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <h3 style="margin:0; color:#555;">Total Horses</h3>
-                    <p style="font-size: 2rem; font-weight: bold; color: #2563eb; margin: 0.5rem 0 0 0;">${totalHorses}</p>
-                </div>
-                <div style="padding: 1.5rem; background: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <h3 style="margin:0; color:#555;">Total Races</h3>
-                    <p style="font-size: 2rem; font-weight: bold; color: #16a34a; margin: 0.5rem 0 0 0;">${totalRaces}</p>
-                </div>
-                <div style="padding: 1.5rem; background: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <h3 style="margin:0; color:#555;">Total Jockeys</h3>
-                    <p style="font-size: 2rem; font-weight: bold; color: #d97706; margin: 0.5rem 0 0 0;">${totalJockeys}</p>
-                </div>
-                <div style="padding: 1.5rem; background: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <h3 style="margin:0; color:#555;">Total Trainers</h3>
-                    <p style="font-size: 2rem; font-weight: bold; color: #9333ea; margin: 0.5rem 0 0 0;">${totalTrainers}</p>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// Fallback alias in case other elements call showStatistics()
-function showStatistics() {
-    renderStatistics();
-}

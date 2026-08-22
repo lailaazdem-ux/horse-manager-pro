@@ -1732,39 +1732,116 @@ function saveProfile(){
 }
 /* ---------- Statistics & Analytics ---------- */
 function renderStatistics() {
-    const totalHorses = (db.horses || []).length;
-    const totalRaces = (db.races || []).length;
-    const totalJockeys = (db.jockeys || []).length;
-    const totalTrainers = (db.trainers || []).length;
+    const horses = db.horses || [];
+    const races = db.races || [];
+    const jockeys = db.jockeys || [];
+    const trainers = db.trainers || [];
+
+    // Helper functions to get names
+    const getJockeyName = (id) => jockeys.find(j => j.id === id)?.name || "Unassigned";
+    const getTrainerName = (id) => trainers.find(t => t.id === id)?.name || "Unassigned";
+
+    // Leaderboard & Top Winners Calculation
+    const sortedHorses = [...horses].sort((a, b) => (b.wins || 0) - (a.wins || 0));
+    const topHorse = sortedHorses[0] || null;
+
+    const sortedJockeys = [...jockeys].sort((a, b) => (b.wins || 0) - (a.wins || 0));
+    const topJockey = sortedJockeys[0] || null;
+
+    const sortedTrainers = [...trainers].sort((a, b) => (b.wins || 0) - (a.wins || 0));
+    const topTrainer = sortedTrainers[0] || null;
+
+    // Automated Insights
+    let insightsHtml = "";
+    if (!horses.length && !races.length) {
+        insightsHtml = `<li>No data available yet. Start by adding horses and recording races to generate insights.</li>`;
+    } else {
+        if (topHorse && (topHorse.wins || 0) > 0) {
+            insightsHtml += `<li>🏆 <strong>${esc(topHorse.name)}</strong> is leading the stable with <strong>${topHorse.wins} wins</strong>.</li>`;
+        } else if (topHorse) {
+            insightsHtml += `<li>🐎 <strong>${esc(topHorse.name)}</strong> is registered as the primary horse in the database.</li>`;
+        }
+
+        if (topJockey && (topJockey.wins || 0) > 0) {
+            insightsHtml += `<li>🏇 <strong>${esc(topJockey.name)}</strong> holds the highest win count among jockeys (${topJockey.wins} wins).</li>`;
+        }
+
+        if (topTrainer && (topTrainer.wins || 0) > 0) {
+            insightsHtml += `<li>👨‍🌾 <strong>${esc(topTrainer.name)}</strong> leads trainer standings with ${topTrainer.wins} victories.</li>`;
+        }
+
+        const completedRaces = races.filter(r => r.results && Object.keys(r.results).length > 0).length;
+        insightsHtml += `<li>🏁 <strong>${completedRaces} of ${races.length}</strong> scheduled races have official recorded results.</li>`;
+    }
 
     setMain(`
         ${dashboardAssistantHost()}
         <h1>📊 Statistics & Analytics</h1>
-        <div class="grid-2">
-            <div class="card">
-                <h3>Total Horses</h3>
-                <p style="font-size: 2rem; font-weight: bold; color: var(--primary, #2563eb);">${totalHorses}</p>
+
+        <!-- Top Performers Summary -->
+        <div class="grid-3" style="margin-bottom: 1.5rem;">
+            <div class="card" style="border-left: 4px solid #2563eb;">
+                <small style="color: #666; font-weight: bold; text-transform: uppercase;">Top Horse</small>
+                <h2 style="margin: 0.5rem 0 0 0;">${topHorse ? esc(topHorse.name) : "N/A"}</h2>
+                <p style="margin: 0.25rem 0 0 0; color: #555;">${topHorse ? (topHorse.wins || 0) + " Wins" : "No records"}</p>
             </div>
-            <div class="card">
-                <h3>Total Races</h3>
-                <p style="font-size: 2rem; font-weight: bold; color: #16a34a;">${totalRaces}</p>
+            <div class="card" style="border-left: 4px solid #d97706;">
+                <small style="color: #666; font-weight: bold; text-transform: uppercase;">Top Jockey</small>
+                <h2 style="margin: 0.5rem 0 0 0;">${topJockey ? esc(topJockey.name) : "N/A"}</h2>
+                <p style="margin: 0.25rem 0 0 0; color: #555;">${topJockey ? (topJockey.wins || 0) + " Wins" : "No records"}</p>
             </div>
-            <div class="card">
-                <h3>Total Jockeys</h3>
-                <p style="font-size: 2rem; font-weight: bold; color: #d97706;">${totalJockeys}</p>
+            <div class="card" style="border-left: 4px solid #9333ea;">
+                <small style="color: #666; font-weight: bold; text-transform: uppercase;">Top Trainer</small>
+                <h2 style="margin: 0.5rem 0 0 0;">${topTrainer ? esc(topTrainer.name) : "N/A"}</h2>
+                <p style="margin: 0.25rem 0 0 0; color: #555;">${topTrainer ? (topTrainer.wins || 0) + " Wins" : "No records"}</p>
             </div>
-            <div class="card">
-                <h3>Total Trainers</h3>
-                <p style="font-size: 2rem; font-weight: bold; color: #9333ea;">${totalTrainers}</p>
+        </div>
+
+        <!-- Automated Insights -->
+        <div class="card" style="margin-bottom: 1.5rem; background: #f8fafc; border: 1px solid #e2e8f0;">
+            <h2 style="margin-top: 0;">💡 Automated Insights</h2>
+            <ul style="margin: 0; padding-left: 1.2rem; line-height: 1.8;">
+                ${insightsHtml}
+            </ul>
+        </div>
+
+        <!-- Horse Leaderboard -->
+        <div class="card">
+            <h2 style="margin-top: 0;">🏅 Horse Leaderboard</h2>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Horse</th>
+                            <th>Jockey</th>
+                            <th>Trainer</th>
+                            <th>1st (Wins)</th>
+                            <th>2nd</th>
+                            <th>3rd</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sortedHorses.length ? sortedHorses.map((h, index) => `
+                            <tr>
+                                <td><strong>#${index + 1}</strong></td>
+                                <td><strong>${esc(h.name)}</strong></td>
+                                <td>${esc(getJockeyName(h.jockeyId))}</td>
+                                <td>${esc(getTrainerName(h.trainerId))}</td>
+                                <td><span style="color: #16a34a; font-weight: bold;">${h.wins || 0}</span></td>
+                                <td>${h.seconds || 0}</td>
+                                <td>${h.thirds || 0}</td>
+                            </tr>
+                        `).join('') : `<tr><td colspan="7">No horses in database.</td></tr>`}
+                    </tbody>
+                </table>
             </div>
         </div>
     `);
+
     setTimeout(renderAssistantBar, 0);
 }
 
-function showStatistics() {
-    renderStatistics();
-}
 
 /* ---------- Official public website navigation ---------- */
 function openManager(){
